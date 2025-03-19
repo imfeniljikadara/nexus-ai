@@ -1,4 +1,4 @@
-# 🚀 Nexus.ai
+# Nexus.ai
 
 <div align="center">
   <h3>Intelligent Document Analysis and Chat Platform</h3>
@@ -7,16 +7,16 @@
 
 ---
 
-## 🌟 Features
+## Features
 
-- 📚 **Smart PDF Analysis**: Upload and analyze PDF documents with ease
-- 💬 **Natural Conversations**: Chat with your documents using natural language
-- 🤖 **AI-Powered**: Leverages Google's Gemini 1.5 Flash for intelligent responses
-- 🔍 **Context-Aware**: Understands document context for accurate answers
-- ⚡ **High Performance**: Fast processing with optimized vector search
-- 🔐 **Secure**: Local document processing with data privacy
+- **Smart PDF Analysis**: Upload and analyze PDF documents with ease
+- **Natural Conversations**: Chat with your documents using natural language
+- **AI-Powered**: Leverages Google's Gemini 1.5 Flash for intelligent responses
+- **Context-Aware**: Understands document context for accurate answers
+- **High Performance**: Fast processing with optimized vector search
+- **Secure**: Local document processing with data privacy
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Frontend**: Next.js, TypeScript, Tailwind CSS
 - **Backend**: FastAPI, Python
@@ -24,10 +24,10 @@
 - **Vector DB**: ChromaDB
 - **Document Processing**: LangChain
 
-## 📋 Prerequisites
+## Prerequisites
 
-- Python 3.8+
-- Node.js 16+
+- Python 3.12+
+- Node.js 15+
 - Google Cloud API Key (for Gemini AI)
 
 ## 🚀 Quick Start
@@ -87,7 +87,7 @@ nexus-ai/
 └── README.md           # This file
 ```
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
@@ -95,14 +95,12 @@ nexus-ai/
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Google Gemini AI for the powerful language model
 - LangChain for document processing capabilities
 - ChromaDB for efficient vector storage
-
----
