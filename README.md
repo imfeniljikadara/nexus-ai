@@ -34,7 +34,7 @@
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/nexus-ai.git
+   git clone https://github.com/imfeniljikadara/nexus-ai.git
    cd nexus-ai
    ```
 
@@ -106,7 +106,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - ChromaDB for efficient vector storage
 
 ---
-
-<div align="center">
-  Made with ❤️ by Your Team
-</div> 
