@@ -1,9 +1,0 @@
-fastapi==0.104.1
-python-multipart==0.0.6
-uvicorn==0.24.0
-pymupdf==1.23.7
-transformers==4.35.2
-torch>=2.1.1
-pytesseract==0.3.10
-Pillow==10.1.0
-numpy==1.26.2 
