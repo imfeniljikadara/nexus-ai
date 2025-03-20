@@ -36,21 +36,22 @@ export default function Home() {
     formData.append('file', file)
 
     try {
-      console.log('Attempting to upload file to:', `${process.env.NEXT_PUBLIC_API_URL}/upload`)
+      console.log('Attempting to upload to:', `${process.env.NEXT_PUBLIC_API_URL}/upload`)
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload`, {
         method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+        },
         body: formData,
       })
       
       if (!response.ok) {
-        console.error('Upload failed with status:', response.status)
         const errorText = await response.text()
-        console.error('Error response:', errorText)
+        console.error('Upload failed:', response.status, errorText)
         throw new Error(`Upload failed: ${response.status} ${errorText}`)
       }
       
       const data = await response.json()
-      console.log('Upload response:', data)
       
       if (data.error) {
         setError(data.error)
@@ -59,9 +60,9 @@ export default function Home() {
 
       setFile(file)
       setPdfUrl(data.url)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading file:', error)
-      setError('Failed to upload file. Please try again.')
+      setError(`Failed to upload file: ${error.message || 'Please try again.'}`)
     }
   }
 
