@@ -59,6 +59,10 @@ async def get_pdf(filename: str):
         print(f"Error serving PDF: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.options("/upload")
+async def upload_options():
+    return {"message": "OK"}
+
 @app.post("/upload")
 async def upload_pdf(file: UploadFile = File(...)):
     try:
