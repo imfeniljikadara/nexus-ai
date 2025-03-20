@@ -18,11 +18,12 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",  # Local development
         "https://nexus-ai-lac.vercel.app",  # Production frontend
-        "*"  # Allow all origins temporarily for testing
     ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
+    max_age=3600,
 )
 
 # Create temp directory if it doesn't exist
@@ -67,25 +68,38 @@ async def upload_options():
 async def upload_pdf(file: UploadFile = File(...)):
     try:
         print(f"Received file upload: {file.filename}")
+        print(f"Content type: {file.content_type}")
+        
+        if not file.content_type or 'pdf' not in file.content_type.lower():
+            print(f"Invalid content type: {file.content_type}")
+            return {"error": "Invalid PDF file type"}
+
         # Read the first few bytes to verify it's a PDF
         content_start = await file.read(4)
         await file.seek(0)  # Reset file pointer
         
         if content_start != b'%PDF':
-            return {"error": "Invalid PDF file"}
+            print("File does not start with %PDF marker")
+            return {"error": "Invalid PDF file format"}
 
         # Create a unique filename using timestamp
         timestamp = int(time.time())
         safe_filename = f"{timestamp}_{file.filename}"
         file_path = UPLOAD_DIR / safe_filename
+        print(f"Saving file to: {file_path}")
         
         # Save the file
-        with open(file_path, "wb") as f:
-            contents = await file.read()
-            f.write(contents)
+        try:
+            with open(file_path, "wb") as f:
+                contents = await file.read()
+                f.write(contents)
+        except Exception as e:
+            print(f"Error saving file: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
             
         # Use the deployed backend URL
         file_url = f"https://nexus-ai-backend-sbos.onrender.com/pdf/{safe_filename}"
+        print(f"File saved successfully. URL: {file_url}")
         return {
             "filename": safe_filename,
             "url": file_url,
@@ -93,7 +107,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         }
     except Exception as e:
         print(f"Upload error: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/compare")
 async def compare_pdfs(original: UploadFile = File(...), compare: UploadFile = File(...)):
