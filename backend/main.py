@@ -15,7 +15,11 @@ app = FastAPI(title="AI PDF Editor")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Frontend URL
+    allow_origins=[
+        "http://localhost:3000",  # Local development
+        "https://nexus-ai-lac.vercel.app",  # Production frontend
+        "*"  # Allow all origins temporarily for testing
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -76,7 +80,8 @@ async def upload_pdf(file: UploadFile = File(...)):
             contents = await file.read()
             f.write(contents)
             
-        file_url = f"http://localhost:8000/pdf/{safe_filename}"
+        # Use the deployed backend URL
+        file_url = f"https://nexus-ai-backend-sbos.onrender.com/pdf/{safe_filename}"
         return {
             "filename": safe_filename,
             "url": file_url,
@@ -84,7 +89,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         }
     except Exception as e:
         print(f"Upload error: {str(e)}")
-        return {"error": str(e)}
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/compare")
 async def compare_pdfs(original: UploadFile = File(...), compare: UploadFile = File(...)):
@@ -144,4 +149,3 @@ async def compare_pdfs(original: UploadFile = File(...), compare: UploadFile = F
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-    
