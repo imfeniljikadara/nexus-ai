@@ -76,33 +76,6 @@ interface Annotation {
   page: number
 }
 
-// Add this helper function for fabric initialization
-const getFabric = async () => {
-  const { fabric } = await import('fabric')
-  return fabric
-}
-
-// Add this helper function
-const createFabricObject = async (type: string, options: any) => {
-  const { fabric } = await import('fabric')
-  switch (type) {
-    case 'rect':
-      return new fabric.Rect(options)
-    case 'circle':
-      return new fabric.Circle(options)
-    case 'line':
-      return new fabric.Line(options.points, options.config)
-    case 'text':
-      return new fabric.Text(options.text, options.config)
-    case 'itext':
-      return new fabric.IText(options.text, options.config)
-    case 'group':
-      return new fabric.Group(options.objects, options.config)
-    default:
-      return null
-  }
-}
-
 // Add these helper functions at the top of the file after imports
 const createEditableText = async (canvas: fabric.Canvas, pointer: { x: number, y: number }, options: any = {}) => {
   const { fabric } = await import('fabric');
@@ -126,7 +99,7 @@ const createEditableText = async (canvas: fabric.Canvas, pointer: { x: number, y
   return text;
 };
 
-const createStickyNote = async (canvas: fabric.Canvas, pointer: { x: number, y: number }) => {
+const createStickyNote = async (canvas: fabric.Canvas, pointer: { x: number, y: number }, isTextEditing: boolean, setIsTextEditing: (value: boolean) => void) => {
   const { fabric } = await import('fabric');
 
   // Create background
@@ -184,17 +157,16 @@ const createStickyNote = async (canvas: fabric.Canvas, pointer: { x: number, y: 
   })(group.toObject);
 
   // Handle editing
-  group.on('mousedown', function(this: fabric.Group, e) {
-    if (isEditing) return;
+  group.on('mousedown', function(this: fabric.Group) {
+    if (isTextEditing) return;
     
     const objects = this.getObjects();
     const textObj = objects.find((obj: fabric.Object) => obj instanceof fabric.IText) as fabric.IText;
-    if (textObj) {
-      canvasRef.current!.setActiveObject(textObj);
+    if (textObj && canvas) {
+      canvas.setActiveObject(textObj);
       textObj.enterEditing();
-      isEditing = true;
-      setIsEditing(true);
-      canvasRef.current!.requestRenderAll();
+      setIsTextEditing(true);
+      canvas.requestRenderAll();
     }
   });
 
@@ -203,6 +175,33 @@ const createStickyNote = async (canvas: fabric.Canvas, pointer: { x: number, y: 
   canvas.requestRenderAll();
   return group;
 };
+
+// Add this helper function for fabric initialization
+const getFabric = async () => {
+  const { fabric } = await import('fabric')
+  return fabric
+}
+
+// Add this helper function
+const createFabricObject = async (type: string, options: any) => {
+  const { fabric } = await import('fabric')
+  switch (type) {
+    case 'rect':
+      return new fabric.Rect(options)
+    case 'circle':
+      return new fabric.Circle(options)
+    case 'line':
+      return new fabric.Line(options.points, options.config)
+    case 'text':
+      return new fabric.Text(options.text, options.config)
+    case 'itext':
+      return new fabric.IText(options.text, options.config)
+    case 'group':
+      return new fabric.Group(options.objects, options.config)
+    default:
+      return null
+  }
+}
 
 // Add these interfaces near the top of the file after imports
 interface TextState {
@@ -229,53 +228,35 @@ const PDFViewerComponent: React.FC<Props> = ({ file }) => {
   const [drawingColor, setDrawingColor] = useState('#000000')
   const [drawingWidth, setDrawingWidth] = useState(2)
   const [annotations, setAnnotations] = useState<Annotation[]>([])
+  const [isTextMode, setIsTextMode] = useState(false)
+  const [isTextEditing, setIsTextEditing] = useState(false)
+  const [selectedText, setSelectedText] = useState<fabric.IText | null>(null)
+  const [isDrawingShape, setIsDrawingShape] = useState(false)
+  const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null)
+  const [endPoint, setEndPoint] = useState<{ x: number; y: number } | null>(null)
+  const [activeObject, setActiveObject] = useState<fabric.Object | null>(null)
+  const [allObjects, setAllObjects] = useState<any[]>([])
+  const [drawnObjects, setDrawnObjects] = useState<any[]>([])
+  const [currentShape, setCurrentShape] = useState<fabric.Object | null>(null)
+  const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 })
+  const [currentPaths, setCurrentPaths] = useState<any[]>([])
   
   const containerRef = useRef<HTMLDivElement>(null)
   const pdfContainerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<fabric.Canvas | null>(null)
   const isDrawing = useRef(false)
 
-  // Add state for canvas dimensions
-  const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 })
-
-  // Add state to track current paths
-  const [currentPaths, setCurrentPaths] = useState<any[]>([])
-
   // Add new state for annotations
   const [selectedTool, setSelectedTool] = useState<string>('')
   const [annotationColor, setAnnotationColor] = useState('#000000')
   const [annotationWidth, setAnnotationWidth] = useState(2)
 
-  // Add these new states after other state declarations
-  const [isDrawingShape, setIsDrawingShape] = useState(false)
-  const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null)
-  const [endPoint, setEndPoint] = useState<{ x: number; y: number } | null>(null)
-  const [activeObject, setActiveObject] = useState<fabric.Object | null>(null)
-
-  // Add this state to track all drawings and annotations
-  const [allObjects, setAllObjects] = useState<any[]>([])
-
-  // Update state declarations
-  const [drawnObjects, setDrawnObjects] = useState<any[]>([])
-
-  // Add this state to track the current shape
-  const [currentShape, setCurrentShape] = useState<fabric.Object | null>(null)
-
   // Add these states near other state declarations
   const [isEditing, setIsEditing] = useState(false);
-  const [selectedText, setSelectedText] = useState<fabric.IText | null>(null);
-
-  // Add these states near other state declarations
-  const [isTextMode, setIsTextMode] = useState(false);
-
-  // Add this state near other state declarations
   const [textState, setTextState] = useState<TextState>({
     isEditing: false,
     activeText: null
   });
-
-  // Add this state near other state declarations
-  const [isTextEditing, setIsTextEditing] = useState(false);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages)
@@ -712,75 +693,15 @@ const PDFViewerComponent: React.FC<Props> = ({ file }) => {
         canvasRef.current.off('text:editing:exited');
         canvasRef.current.off('mouse:up');
 
-        // Add handler for clicking on existing sticky notes
-        canvasRef.current.on('mouse:up', function(opt) {
-          if (!canvasRef.current || !opt.target || isTextEditing) return;
-          
-          const target = opt.target;
-          if (target instanceof fabric.Group) {
-            const textObj = target.getObjects().find((obj: fabric.Object) => obj instanceof fabric.IText) as fabric.IText;
-            if (textObj) {
-              canvasRef.current.setActiveObject(textObj);
-              textObj.enterEditing();
-              setIsTextEditing(true);
-              canvasRef.current.requestRenderAll();
-            }
-          }
-        });
-
         // Add handler for creating new sticky notes
-        canvasRef.current.on('mouse:down', function(opt) {
+        canvasRef.current.on('mouse:down', async function(opt) {
           if (!canvasRef.current) return;
           
           // If clicking on an existing object or already editing, do nothing
           if (opt.target || isTextEditing) return;
           
           const pointer = canvasRef.current.getPointer(opt.e);
-          
-          const background = new fabric.Rect({
-            width: 200,
-            height: 120,
-            fill: '#fff59d',
-            stroke: '#e6d649',
-            strokeWidth: 1,
-            rx: 5,
-            ry: 5,
-            left: 0,
-            top: 0,
-            selectable: false
-          });
-
-          const text = new fabric.IText('', {
-            fontSize: 16,
-            fill: '#000000',
-            fontFamily: 'Arial',
-            left: 25,
-            top: 10,
-            width: 170,
-            selectable: true,
-            editable: true
-          });
-
-          const icon = new fabric.Text('📝', {
-            left: 5,
-            top: 5,
-            fontSize: 16,
-            selectable: false,
-            evented: false
-          });
-
-          const group = new fabric.Group([background, icon, text], {
-            left: pointer.x,
-            top: pointer.y,
-            subTargetCheck: true,
-            hasControls: true,
-            hasBorders: true
-          });
-
-          canvasRef.current.add(group);
-          text.enterEditing();
-          setIsTextEditing(true);
-          canvasRef.current.requestRenderAll();
+          await createStickyNote(canvasRef.current, pointer, isTextEditing, setIsTextEditing);
         });
 
         canvasRef.current.on('text:editing:exited', function(opt) {
