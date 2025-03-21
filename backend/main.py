@@ -185,22 +185,24 @@ async def chat(request: ChatRequest):
     
     try:
         if not chat_service:
-            print("Error: Chat service not initialized")
-            raise HTTPException(status_code=500, detail="Chat service not initialized")
+            error_msg = "Chat service not initialized"
+            print(f"Error: {error_msg}")
+            raise HTTPException(status_code=500, detail=error_msg)
         
-        # Add timeout to prevent hanging
         try:
             response = await asyncio.wait_for(
                 chat_service.process_chat(request.message, request.pdf_url),
-                timeout=60.0  # 60 second timeout
+                timeout=120.0  # Increased timeout to 120 seconds
             )
         except asyncio.TimeoutError:
-            print("Error: Chat request timed out after 60 seconds")
-            raise HTTPException(status_code=504, detail="Request timed out")
+            error_msg = "Chat request timed out after 120 seconds"
+            print(f"Error: {error_msg}")
+            raise HTTPException(status_code=504, detail=error_msg)
             
         if not response:
-            print("Error: Empty response received from chat service")
-            raise HTTPException(status_code=500, detail="Empty response from chat service")
+            error_msg = "Empty response received from chat service"
+            print(f"Error: {error_msg}")
+            raise HTTPException(status_code=500, detail=error_msg)
             
         end_time = time.time()
         print(f"Chat request completed in {end_time - start_time:.2f} seconds")
@@ -209,14 +211,15 @@ async def chat(request: ChatRequest):
         
         return {"response": response}
     except HTTPException as he:
-        print(f"HTTP Exception in chat endpoint: {str(he)}")
-        raise he
+        print(f"HTTP Exception in chat endpoint: {str(he.detail)}")
+        return {"error": he.detail}
     except Exception as e:
-        print(f"Unexpected error in chat endpoint: {str(e)}")
+        error_msg = f"Unexpected error in chat endpoint: {str(e)}"
+        print(error_msg)
         print(f"Error type: {type(e)}")
         import traceback
         print(f"Traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"error": error_msg}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
