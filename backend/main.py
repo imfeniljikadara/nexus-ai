@@ -11,6 +11,7 @@ import time
 import fitz  # PyMuPDF
 import difflib
 import json
+import asyncio
 
 app = FastAPI(title="AI PDF Editor")
 
@@ -177,23 +178,44 @@ class ChatRequest(BaseModel):
 
 @app.post("/chat")
 async def chat(request: ChatRequest):
+    start_time = time.time()
+    print(f"\n=== Chat Request Started at {time.strftime('%Y-%m-%d %H:%M:%S')} ===")
+    print(f"PDF URL: {request.pdf_url}")
+    print(f"Message: {request.message}")
+    
     try:
-        print(f"Processing chat request for PDF: {request.pdf_url}")
-        print(f"User message: {request.message}")
-        
         if not chat_service:
-            print("Chat service not initialized")
+            print("Error: Chat service not initialized")
             raise HTTPException(status_code=500, detail="Chat service not initialized")
-            
-        response = await chat_service.process_chat(request.message, request.pdf_url)
-        print(f"Generated response: {response[:100]}...")  # Log first 100 chars of response
         
-        if not response:
-            raise HTTPException(status_code=500, detail="Failed to generate response")
+        # Add timeout to prevent hanging
+        try:
+            response = await asyncio.wait_for(
+                chat_service.process_chat(request.message, request.pdf_url),
+                timeout=60.0  # 60 second timeout
+            )
+        except asyncio.TimeoutError:
+            print("Error: Chat request timed out after 60 seconds")
+            raise HTTPException(status_code=504, detail="Request timed out")
             
+        if not response:
+            print("Error: Empty response received from chat service")
+            raise HTTPException(status_code=500, detail="Empty response from chat service")
+            
+        end_time = time.time()
+        print(f"Chat request completed in {end_time - start_time:.2f} seconds")
+        print(f"Response preview: {response[:100]}...")
+        print("=== Chat Request Completed Successfully ===\n")
+        
         return {"response": response}
+    except HTTPException as he:
+        print(f"HTTP Exception in chat endpoint: {str(he)}")
+        raise he
     except Exception as e:
-        print(f"Chat endpoint error: {str(e)}")
+        print(f"Unexpected error in chat endpoint: {str(e)}")
+        print(f"Error type: {type(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
