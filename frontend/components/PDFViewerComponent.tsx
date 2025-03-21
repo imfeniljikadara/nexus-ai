@@ -9,6 +9,7 @@ import { AnnotationToolbar } from './AnnotationToolbar'
 import { ShapeType, TextAnnotationType, StampType } from '../types/annotations'
 import type { fabric } from 'fabric'
 import { DrawingToolbar } from './DrawingToolbar'
+import ChatBox from './ChatBox'
 
 // Define unified drawing types
 type DrawingTool = 
@@ -240,6 +241,7 @@ const PDFViewerComponent: React.FC<Props> = ({ file }) => {
   const [currentShape, setCurrentShape] = useState<fabric.Object | null>(null)
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 })
   const [currentPaths, setCurrentPaths] = useState<any[]>([])
+  const [isChatOpen, setIsChatOpen] = useState(false)
   
   const containerRef = useRef<HTMLDivElement>(null)
   const pdfContainerRef = useRef<HTMLDivElement>(null)
@@ -260,6 +262,11 @@ const PDFViewerComponent: React.FC<Props> = ({ file }) => {
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages)
+    
+    // Upload the PDF to the backend when it's loaded
+    if (file) {
+      uploadPdfToBackend(file)
+    }
   }
 
   async function generatePDFWithFormFields() {
@@ -1206,6 +1213,37 @@ const PDFViewerComponent: React.FC<Props> = ({ file }) => {
     </button>
   )
 
+  // Add this function to handle file upload to backend
+  const uploadPdfToBackend = async (file: File | string) => {
+    const formData = new FormData()
+    
+    if (file instanceof File) {
+      formData.append('file', file)
+    } else {
+      // If it's a URL, we need to fetch it first
+      const response = await fetch(file)
+      const blob = await response.blob()
+      formData.append('file', blob, 'document.pdf')
+    }
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to upload PDF')
+      }
+
+      const data = await response.json()
+      return data.url
+    } catch (error) {
+      console.error('Error uploading PDF:', error)
+      return null
+    }
+  }
+
   return (
     <div ref={containerRef} className="h-full overflow-auto relative font-['SF_Pro_Text',-apple-system,BlinkMacSystemFont,Roboto,'Segoe_UI',Helvetica,Arial,sans-serif,'Apple_Color_Emoji','Segoe_UI_Emoji','Segoe_UI_Symbol'] bg-gray-50">
       {/* Top Controls */}
@@ -1476,6 +1514,23 @@ const PDFViewerComponent: React.FC<Props> = ({ file }) => {
           </Document>
         </div>
       </div>
+
+      {/* Chat Button */}
+      <button
+        onClick={() => setIsChatOpen(true)}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+      </button>
+
+      {/* Chat Box */}
+      <ChatBox
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        pdfUrl={typeof file === 'string' ? file : null}
+      />
     </div>
   )
 }
