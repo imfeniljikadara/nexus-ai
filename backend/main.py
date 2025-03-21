@@ -2,6 +2,8 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from services.chat_service import ChatService
+from pydantic import BaseModel
 import uvicorn
 import os
 from pathlib import Path
@@ -11,6 +13,9 @@ import difflib
 import json
 
 app = FastAPI(title="AI PDF Editor")
+
+# Initialize chat service
+chat_service = ChatService()
 
 # Configure CORS
 app.add_middleware(
@@ -164,6 +169,19 @@ async def compare_pdfs(original: UploadFile = File(...), compare: UploadFile = F
 
         return results
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class ChatRequest(BaseModel):
+    message: str
+    pdf_url: str
+
+@app.post("/chat")
+async def chat(request: ChatRequest):
+    try:
+        response = await chat_service.process_chat(request.message, request.pdf_url)
+        return {"response": response}
+    except Exception as e:
+        print(f"Chat endpoint error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
