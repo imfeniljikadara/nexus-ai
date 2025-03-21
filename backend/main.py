@@ -19,13 +19,14 @@ app = FastAPI(title="AI PDF Editor")
 chat_service = ChatService()
 
 # Configure CORS
+origins = [
+    "http://localhost:3000",  # Local development
+    "https://nexus-ai-lac.vercel.app",  # Production frontend
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # Local development
-        "https://nexus-ai-lac.vercel.app",  # Production frontend
-        "*"  # Allow all origins temporarily for testing
-    ],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -44,14 +45,14 @@ async def root():
 
 @app.get("/pdf/{filename}")
 async def get_pdf(filename: str):
-    file_path = UPLOAD_DIR / filename
-    print(f"Attempting to serve PDF: {file_path}")
-    
-    if not file_path.exists():
-        print(f"File not found: {file_path}")
-        raise HTTPException(status_code=404, detail="PDF not found")
-    
     try:
+        file_path = UPLOAD_DIR / filename
+        print(f"Attempting to serve PDF: {file_path}")
+        
+        if not file_path.exists():
+            print(f"File not found: {file_path}")
+            raise HTTPException(status_code=404, detail="PDF not found")
+        
         # Pre-cache the text if not already cached
         try:
             file_url = f"https://nexus-ai-backend-sbos.onrender.com/pdf/{filename}"
@@ -61,17 +62,20 @@ async def get_pdf(filename: str):
                 print("Text caching completed")
         except Exception as e:
             print(f"Warning: Failed to cache PDF text: {str(e)}")
-            # Continue serving the file anyway
+        
+        headers = {
+            "Content-Type": "application/pdf",
+            "Access-Control-Allow-Origin": origins[1],  # Production frontend
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Content-Disposition": f"inline; filename={filename}"
+        }
         
         return FileResponse(
             path=file_path,
             media_type="application/pdf",
             filename=filename,
-            headers={
-                "Content-Type": "application/pdf",
-                "Access-Control-Allow-Origin": "*",
-                "Content-Disposition": "inline"
-            }
+            headers=headers
         )
     except Exception as e:
         print(f"Error serving PDF: {str(e)}")

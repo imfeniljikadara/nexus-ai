@@ -22,8 +22,8 @@ class ChatService:
     def __init__(self):
         try:
             print("Initializing ChatService...")
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
-            self.chat = None
+            self.model = genai.GenerativeModel('gemini-1.0-pro')  # Using more stable model
+            self.chat_sessions = {}  # Store chat sessions per PDF URL
             self.pdf_cache = {}  # Cache for PDF text
             self.UPLOAD_DIR = Path("temp")  # Match the upload directory from main.py
             print("ChatService initialized successfully")
@@ -81,6 +81,11 @@ class ChatService:
                 print(f"Text extraction completed in {extract_time:.2f} seconds")
                 print(f"Total characters extracted: {len(text)}")
                 
+                if not text.strip():
+                    error_msg = "No text could be extracted from the PDF"
+                    print(error_msg)
+                    raise HTTPException(status_code=400, detail=error_msg)
+                
                 # Cache the result
                 self.pdf_cache[pdf_url] = text
                 return text
@@ -102,10 +107,17 @@ class ChatService:
             print("\n--- Starting chat processing ---")
             start_time = time.time()
             
-            # Extract text if needed
-            if not self.chat or pdf_url not in self.pdf_cache:
-                print("Extracting text from PDF...")
-                text = await self.extract_text_from_pdf(pdf_url)
+            # Get or create chat session for this PDF
+            if pdf_url not in self.chat_sessions:
+                print("Creating new chat session for PDF...")
+                
+                # Extract text if needed
+                if pdf_url not in self.pdf_cache:
+                    print("Extracting text from PDF...")
+                    text = await self.extract_text_from_pdf(pdf_url)
+                else:
+                    print("Using cached PDF text")
+                    text = self.pdf_cache[pdf_url]
                 
                 print("Initializing chat with context...")
                 # Prepare a clear and concise context
@@ -119,24 +131,31 @@ class ChatService:
                 
                 try:
                     print("Creating new chat session...")
-                    self.chat = self.model.start_chat(history=[])
+                    chat = self.model.start_chat(history=[])
                     
                     print("Sending initial context to model...")
-                    response = self.chat.send_message(context)
+                    response = chat.send_message(context)
                     if not response:
                         raise Exception("No response received from model during initialization")
                     print("Chat initialized successfully")
+                    
+                    # Store the chat session
+                    self.chat_sessions[pdf_url] = chat
+                    
                 except Exception as e:
                     error_msg = f"Failed to initialize chat: {str(e)}"
                     print(error_msg)
                     raise HTTPException(status_code=500, detail=error_msg)
             else:
-                print("Using existing chat session with cached PDF text")
+                print("Using existing chat session")
+            
+            # Get the chat session for this PDF
+            chat = self.chat_sessions[pdf_url]
             
             # Process the user's message
             print(f"Processing user message: {message[:100]}...")
             try:
-                response = self.chat.send_message(message)
+                response = chat.send_message(message)
                 if not response:
                     raise Exception("No response received from model")
                 
