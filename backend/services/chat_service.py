@@ -12,10 +12,14 @@ genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
 
 class ChatService:
     def __init__(self):
-        # Initialize the model
-        self.model = genai.GenerativeModel('gemini-1.5-pro')
-        self.chat = None
-        self.current_pdf_text = None
+        try:
+            # Initialize the model with gemini-1.5-flash
+            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            self.chat = None
+            self.current_pdf_text = None
+        except Exception as e:
+            print(f"Error initializing Gemini model: {str(e)}")
+            raise e
     
     async def extract_text_from_pdf(self, pdf_url):
         try:
@@ -50,10 +54,14 @@ class ChatService:
                 # Start a new chat with context
                 context = f"You are an AI assistant helping with a PDF document. Here's the content of the PDF:\n\n{self.current_pdf_text}\n\nPlease help answer questions about this document."
                 self.chat = self.model.start_chat(history=[])
-                self.chat.send_message(context)
+                response = self.chat.send_message(context)
+                if not response:
+                    raise Exception("Failed to initialize chat with context")
             
             # Send user message and get response
             response = self.chat.send_message(message)
+            if not response:
+                raise Exception("Failed to get response from model")
             return response.text
             
         except Exception as e:

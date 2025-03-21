@@ -178,7 +178,19 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 async def chat(request: ChatRequest):
     try:
+        print(f"Processing chat request for PDF: {request.pdf_url}")
+        print(f"User message: {request.message}")
+        
+        if not chat_service:
+            print("Chat service not initialized")
+            raise HTTPException(status_code=500, detail="Chat service not initialized")
+            
         response = await chat_service.process_chat(request.message, request.pdf_url)
+        print(f"Generated response: {response[:100]}...")  # Log first 100 chars of response
+        
+        if not response:
+            raise HTTPException(status_code=500, detail="Failed to generate response")
+            
         return {"response": response}
     except Exception as e:
         print(f"Chat endpoint error: {str(e)}")
