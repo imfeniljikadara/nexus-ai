@@ -46,11 +46,23 @@ async def root():
 async def get_pdf(filename: str):
     file_path = UPLOAD_DIR / filename
     print(f"Attempting to serve PDF: {file_path}")
+    
     if not file_path.exists():
         print(f"File not found: {file_path}")
         raise HTTPException(status_code=404, detail="PDF not found")
     
     try:
+        # Pre-cache the text if not already cached
+        try:
+            file_url = f"https://nexus-ai-backend-sbos.onrender.com/pdf/{filename}"
+            if file_url not in chat_service.pdf_cache:
+                print("Pre-caching PDF text on first access...")
+                await chat_service.extract_text_from_pdf(file_url)
+                print("Text caching completed")
+        except Exception as e:
+            print(f"Warning: Failed to cache PDF text: {str(e)}")
+            # Continue serving the file anyway
+        
         return FileResponse(
             path=file_path,
             media_type="application/pdf",
@@ -98,12 +110,17 @@ async def upload_pdf(file: UploadFile = File(...)):
             f.write(contents)
             
         print(f"File saved successfully. Size: {len(contents)} bytes")
+        
+        # Pre-extract text to cache it
+        try:
+            print("Pre-extracting text for caching...")
+            file_url = f"https://nexus-ai-backend-sbos.onrender.com/pdf/{safe_filename}"
+            await chat_service.extract_text_from_pdf(file_url)
+            print("Text extraction and caching completed")
+        except Exception as e:
+            print(f"Warning: Failed to pre-cache PDF text: {str(e)}")
+            # Continue anyway as this is not critical
             
-        # Use the deployed backend URL
-        file_url = f"https://nexus-ai-backend-sbos.onrender.com/pdf/{safe_filename}"
-        
-        print(f"Generated URL: {file_url}")
-        
         return {
             "filename": safe_filename,
             "url": file_url,

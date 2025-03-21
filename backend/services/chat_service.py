@@ -7,6 +7,7 @@ from io import BytesIO
 import asyncio
 from fastapi import HTTPException
 import time
+from pathlib import Path
 
 load_dotenv()
 
@@ -24,6 +25,7 @@ class ChatService:
             self.model = genai.GenerativeModel('gemini-1.5-flash')
             self.chat = None
             self.pdf_cache = {}  # Cache for PDF text
+            self.UPLOAD_DIR = Path("temp")  # Match the upload directory from main.py
             print("ChatService initialized successfully")
         except Exception as e:
             error_msg = str(e)
@@ -37,66 +39,59 @@ class ChatService:
                     print(f"Error listing models: {str(list_error)}")
             raise e
     
+    def get_filename_from_url(self, pdf_url: str) -> str:
+        """Extract filename from PDF URL."""
+        return pdf_url.split('/')[-1]
+    
     async def extract_text_from_pdf(self, pdf_url):
-        # Check cache first
-        if pdf_url in self.pdf_cache:
-            print("Using cached PDF text")
-            return self.pdf_cache[pdf_url]
-
         try:
-            print(f"Downloading PDF from URL: {pdf_url}")
+            # Get local filename from URL
+            filename = self.get_filename_from_url(pdf_url)
+            file_path = self.UPLOAD_DIR / filename
+            
+            # Check cache first
+            if pdf_url in self.pdf_cache:
+                print(f"Using cached text for PDF: {filename}")
+                return self.pdf_cache[pdf_url]
+
+            print(f"Reading local PDF file: {file_path}")
             start_time = time.time()
             
-            # Use a session for better performance
-            with requests.Session() as session:
-                session.headers.update({
-                    'User-Agent': 'Mozilla/5.0',
-                    'Accept': 'application/pdf'
-                })
-                response = session.get(pdf_url, timeout=60, stream=True)
-                response.raise_for_status()
+            if not file_path.exists():
+                error_msg = f"PDF file not found: {filename}"
+                print(error_msg)
+                raise HTTPException(status_code=404, detail=error_msg)
+            
+            try:
+                # Open PDF directly from local file
+                doc = fitz.open(file_path)
                 
-                # Read the response in chunks
-                content = BytesIO()
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        content.write(chunk)
+                text = ""
+                total_pages = doc.page_count
+                print(f"Extracting text from {total_pages} pages...")
                 
-            download_time = time.time() - start_time
-            print(f"PDF downloaded in {download_time:.2f} seconds")
-            
-            print("Extracting text from PDF...")
-            start_time = time.time()
-            
-            # Reset buffer position
-            content.seek(0)
-            doc = fitz.open(stream=content, filetype="pdf")
-            
-            text = ""
-            total_pages = doc.page_count
-            for page_num, page in enumerate(doc, 1):
-                print(f"Extracting text from page {page_num}/{total_pages}")
-                text += page.get_text()
-                if page_num % 5 == 0:  # Progress update every 5 pages
-                    print(f"Processed {page_num}/{total_pages} pages...")
-            
-            doc.close()
-            extract_time = time.time() - start_time
-            print(f"Text extraction completed in {extract_time:.2f} seconds")
-            print(f"Total characters extracted: {len(text)}")
-            
-            # Cache the result
-            self.pdf_cache[pdf_url] = text
-            return text
-            
-        except requests.Timeout:
-            error_msg = "PDF download timed out after 60 seconds. Please try again."
-            print(error_msg)
-            raise HTTPException(status_code=504, detail=error_msg)
-        except requests.RequestException as e:
-            error_msg = f"Failed to download PDF: {str(e)}"
-            print(error_msg)
-            raise HTTPException(status_code=500, detail=error_msg)
+                for page_num, page in enumerate(doc, 1):
+                    print(f"Extracting text from page {page_num}/{total_pages}")
+                    text += page.get_text()
+                    if page_num % 5 == 0:  # Progress update every 5 pages
+                        print(f"Processed {page_num}/{total_pages} pages...")
+                
+                doc.close()
+                extract_time = time.time() - start_time
+                print(f"Text extraction completed in {extract_time:.2f} seconds")
+                print(f"Total characters extracted: {len(text)}")
+                
+                # Cache the result
+                self.pdf_cache[pdf_url] = text
+                return text
+                
+            except Exception as e:
+                error_msg = f"Error reading PDF file: {str(e)}"
+                print(error_msg)
+                raise HTTPException(status_code=500, detail=error_msg)
+                
+        except HTTPException as he:
+            raise he
         except Exception as e:
             error_msg = f"Error processing PDF: {str(e)}"
             print(error_msg)
@@ -135,6 +130,8 @@ class ChatService:
                     error_msg = f"Failed to initialize chat: {str(e)}"
                     print(error_msg)
                     raise HTTPException(status_code=500, detail=error_msg)
+            else:
+                print("Using existing chat session with cached PDF text")
             
             # Process the user's message
             print(f"Processing user message: {message[:100]}...")
