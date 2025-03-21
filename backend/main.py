@@ -179,47 +179,62 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 async def chat(request: ChatRequest):
     start_time = time.time()
-    print(f"\n=== Chat Request Started at {time.strftime('%Y-%m-%d %H:%M:%S')} ===")
+    request_id = int(time.time() * 1000)  # Unique request ID
+    print(f"\n=== Chat Request {request_id} Started at {time.strftime('%Y-%m-%d %H:%M:%S')} ===")
     print(f"PDF URL: {request.pdf_url}")
-    print(f"Message: {request.message}")
+    print(f"Message length: {len(request.message)} chars")
     
     try:
         if not chat_service:
             error_msg = "Chat service not initialized"
             print(f"Error: {error_msg}")
-            raise HTTPException(status_code=500, detail=error_msg)
+            return {"error": error_msg, "request_id": request_id}
         
         try:
             response = await asyncio.wait_for(
                 chat_service.process_chat(request.message, request.pdf_url),
-                timeout=120.0  # Increased timeout to 120 seconds
+                timeout=120.0  # 120 second timeout
             )
         except asyncio.TimeoutError:
-            error_msg = "Chat request timed out after 120 seconds"
+            error_msg = "Request timed out after 120 seconds. Please try again with a shorter message or a smaller PDF."
             print(f"Error: {error_msg}")
-            raise HTTPException(status_code=504, detail=error_msg)
+            return {"error": error_msg, "request_id": request_id}
             
         if not response:
-            error_msg = "Empty response received from chat service"
+            error_msg = "No response received from the AI model"
             print(f"Error: {error_msg}")
-            raise HTTPException(status_code=500, detail=error_msg)
+            return {"error": error_msg, "request_id": request_id}
             
         end_time = time.time()
-        print(f"Chat request completed in {end_time - start_time:.2f} seconds")
-        print(f"Response preview: {response[:100]}...")
+        processing_time = end_time - start_time
+        print(f"Chat request {request_id} completed in {processing_time:.2f} seconds")
+        print(f"Response length: {len(response)} chars")
         print("=== Chat Request Completed Successfully ===\n")
         
-        return {"response": response}
+        return {
+            "response": response,
+            "request_id": request_id,
+            "processing_time": processing_time
+        }
+        
     except HTTPException as he:
         print(f"HTTP Exception in chat endpoint: {str(he.detail)}")
-        return {"error": he.detail}
+        return {
+            "error": he.detail,
+            "request_id": request_id,
+            "type": "http_error"
+        }
     except Exception as e:
-        error_msg = f"Unexpected error in chat endpoint: {str(e)}"
-        print(error_msg)
+        error_msg = str(e)
+        print(f"Unexpected error in chat endpoint: {error_msg}")
         print(f"Error type: {type(e)}")
         import traceback
         print(f"Traceback: {traceback.format_exc()}")
-        return {"error": error_msg}
+        return {
+            "error": error_msg,
+            "request_id": request_id,
+            "type": "unexpected_error"
+        }
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
