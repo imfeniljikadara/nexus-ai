@@ -1161,6 +1161,51 @@ const PDFViewerComponent: React.FC<Props> = ({ file }) => {
     };
   }, []);
 
+  // Add keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        setPageNumber(prev => Math.max(1, prev - 1))
+      } else if (e.key === 'ArrowRight') {
+        setPageNumber(prev => Math.min(numPages, prev + 1))
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [numPages])
+
+  // Navigation button component
+  const NavigationButton = ({ direction, onClick, disabled }: { 
+    direction: 'left' | 'right'
+    onClick: () => void
+    disabled: boolean 
+  }) => (
+    <button
+      className={`fixed top-1/2 transform -translate-y-1/2 ${
+        direction === 'left' ? 'left-4' : 'right-4'
+      } bg-white/80 backdrop-blur-sm hover:bg-white/90 rounded-full p-3 shadow-lg border border-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <svg 
+        width="24" 
+        height="24" 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2"
+        className="text-gray-700"
+      >
+        {direction === 'left' ? (
+          <path d="M15 18l-6-6 6-6"/>
+        ) : (
+          <path d="M9 18l6-6-6-6"/>
+        )}
+      </svg>
+    </button>
+  )
+
   return (
     <div ref={containerRef} className="h-full overflow-auto relative font-['SF_Pro_Text',-apple-system,BlinkMacSystemFont,Roboto,'Segoe_UI',Helvetica,Arial,sans-serif,'Apple_Color_Emoji','Segoe_UI_Emoji','Segoe_UI_Symbol'] bg-gray-50">
       {/* Top Controls */}
@@ -1189,6 +1234,15 @@ const PDFViewerComponent: React.FC<Props> = ({ file }) => {
               </svg>
             </button>
           </div>
+
+          {/* Page Indicator */}
+          {numPages > 0 && (
+            <div className="bg-gray-100 rounded-lg px-3 py-2">
+              <span className="text-sm font-medium text-gray-700">
+                Page {pageNumber} of {numPages}
+              </span>
+            </div>
+          )}
 
           {/* Rotation Control */}
           <button
@@ -1334,6 +1388,22 @@ const PDFViewerComponent: React.FC<Props> = ({ file }) => {
         </div>
       )}
 
+      {/* Side Navigation Buttons */}
+      {numPages > 0 && (
+        <>
+          <NavigationButton
+            direction="left"
+            onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+            disabled={pageNumber <= 1}
+          />
+          <NavigationButton
+            direction="right"
+            onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
+            disabled={pageNumber >= numPages}
+          />
+        </>
+      )}
+
       {/* PDF Document with Canvas Overlay */}
       <div className="flex justify-center p-6">
         <div className="relative">
@@ -1406,35 +1476,6 @@ const PDFViewerComponent: React.FC<Props> = ({ file }) => {
           </Document>
         </div>
       </div>
-
-      {/* Bottom Navigation */}
-      {numPages > 0 && (
-        <div className="fixed bottom-6 right-6">
-          <div className="flex items-center space-x-2 bg-white rounded-xl shadow-lg border border-gray-200 p-2">
-            <button
-              className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
-              disabled={pageNumber <= 1}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M15 18l-6-6 6-6"/>
-              </svg>
-            </button>
-            <span className="px-3 font-medium text-gray-700">
-              Page {pageNumber} of {numPages}
-            </span>
-            <button
-              className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
-              disabled={pageNumber >= numPages}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 18l6-6-6-6"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
