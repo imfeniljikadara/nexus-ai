@@ -22,7 +22,7 @@ class ChatService:
     def __init__(self):
         try:
             print("Initializing ChatService...")
-            self.model = genai.GenerativeModel('gemini-1.0-pro')  # Using more stable model
+            self.model = genai.GenerativeModel('gemini-1.5-pro')  # Using gemini-1.5-pro instead of gemini-1.0-pro
             self.chat_sessions = {}  # Store chat sessions per PDF URL
             self.pdf_cache = {}  # Cache for PDF text
             self.UPLOAD_DIR = Path("temp")  # Match the upload directory from main.py
