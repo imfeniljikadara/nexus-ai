@@ -18,26 +18,36 @@ if not api_key:
 print(f"Configuring Gemini with API key: {api_key[:4]}...{api_key[-4:]}")
 genai.configure(api_key=api_key)
 
+# Try to list available models
+try:
+    available_models = genai.list_models()
+    print("Available Gemini models:")
+    for model in available_models:
+        print(f"- {model.name}")
+except Exception as e:
+    print(f"Error listing models: {str(e)}")
+
 class ChatService:
     def __init__(self):
-        try:
-            print("Initializing ChatService...")
-            self.model = genai.GenerativeModel('gemini-1.5-pro')  # Using gemini-1.5-pro instead of gemini-1.0-pro
-            self.chat_sessions = {}  # Store chat sessions per PDF URL
-            self.pdf_cache = {}  # Cache for PDF text
-            self.UPLOAD_DIR = Path("temp")  # Match the upload directory from main.py
-            print("ChatService initialized successfully")
-        except Exception as e:
-            error_msg = str(e)
-            print(f"Error initializing Gemini model: {error_msg}")
-            if "not found for API version" in error_msg:
-                print("Attempting to list available models...")
-                try:
-                    models = genai.list_models()
-                    print("Available models:", [model.name for model in models])
-                except Exception as list_error:
-                    print(f"Error listing models: {str(list_error)}")
-            raise e
+        # Define models to try in order of preference
+        self.model_names = ['gemini-1.5-flash', 'gemini-pro', 'gemini-pro-vision']
+        self.model = None
+        self.chat_sessions = {}  # Store chat sessions per PDF URL
+        self.pdf_cache = {}  # Cache for PDF text
+        self.UPLOAD_DIR = Path("temp")  # Match the upload directory from main.py
+        
+        # Try initializing with different models
+        for model_name in self.model_names:
+            try:
+                print(f"Attempting to initialize with model: {model_name}")
+                self.model = genai.GenerativeModel(model_name)
+                print(f"Successfully initialized with model: {model_name}")
+                break
+            except Exception as e:
+                print(f"Failed to initialize with model {model_name}: {str(e)}")
+        
+        if not self.model:
+            raise Exception("Failed to initialize with any model. Please check your API key and available models.")
     
     def get_filename_from_url(self, pdf_url: str) -> str:
         """Extract filename from PDF URL."""

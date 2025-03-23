@@ -211,6 +211,11 @@ async def chat(request: ChatRequest):
             print(f"Error: {error_msg}")
             return {"error": error_msg, "request_id": request_id}
         
+        if not chat_service.model:
+            error_msg = "No Gemini model available. Please check your API key and available models."
+            print(f"Error: {error_msg}")
+            return {"error": error_msg, "request_id": request_id}
+        
         try:
             response = await asyncio.wait_for(
                 chat_service.process_chat(request.message, request.pdf_url),
@@ -235,7 +240,8 @@ async def chat(request: ChatRequest):
         return {
             "response": response,
             "request_id": request_id,
-            "processing_time": processing_time
+            "processing_time": processing_time,
+            "model": chat_service.model.model_name if chat_service.model else "unknown"
         }
         
     except HTTPException as he:
