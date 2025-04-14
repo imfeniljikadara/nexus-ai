@@ -1,11 +1,7 @@
 # Nexus.ai
 
-<div align="center">
-  <h3>Intelligent Document Analysis and Chat Platform</h3>
+  <p>Intelligent Document Analysis and Chat Platform</p>
   <p>Have natural conversations with your PDF documents using advanced AI</p>
-</div>
-
----
 
 ## Features
 
@@ -30,7 +26,7 @@
 - Node.js 15+
 - Google Cloud API Key (for Gemini AI)
 
-## 🚀 Quick Start
+## Quick Start
 
 1. **Clone the repository**
    ```bash
